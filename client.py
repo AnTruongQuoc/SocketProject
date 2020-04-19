@@ -1,14 +1,15 @@
 import socket
 
-host = socket.gethostname()
-port = 8080
+host = input("Input IP server: ")
+port = input("Input port server: ")
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((socket.gethostname(), port))
+s.connect((host, int(port))) #must change port from string to int
 
 numByteReceive = 1024
 
 while (True):
-    #receivemessage from server
+    #receive message from server
     #msg = s.recv(numByteReceive)
     #print(msg.decode("utf-8"))
     sendData = input()
