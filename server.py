@@ -16,7 +16,11 @@ class ClientThread(threading.Thread):
         print("Connection from: ", self.caddress)
         while (True):
             data = self.csocket.recv(numByteReceive)
-            print("From client ", self.caddress, " content:", data.decode("utf-8"))
+            if (data.decode("utf-8") == "1"):
+                break
+            else:
+                print("From client ", self.caddress, " content:", data.decode("utf-8"))
+            
         print("Client at ", self.caddress, " disconnected...")
 #Class for multithread server socket
 
