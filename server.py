@@ -1,6 +1,8 @@
 import socket, threading
+import pandas as pd #convert csv to dictionary
 
-HOST = socket.gethostname()
+#HOST = socket.gethostname()
+HOST = 'localhost'
 PORT = 8080
 numOfConnet = 5
 numByteReceive = 1024
@@ -26,9 +28,11 @@ class ClientThread(threading.Thread):
 
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #cấu hình kết nối
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((HOST, PORT)) #lắng nghe kết nối
 s.listen(numOfConnet) #thiết lập số kết nối đồng thời
 
+user_data = pd.read_csv("userdata.csv")
 
 print("Server started at ", HOST, ":", PORT)
 print("Waiting for client request")

@@ -5,10 +5,13 @@ import pickle #to send object
 import re
 from getpass import getpass
 
-host = input("Input IP server: ")
-port = input("Input port server: ")
+
+
+host = 'localhost'
+port = 8080
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((host, int(port))) #must change port from string to int
+s.connect((host, 8080)) #must change port from string to int
 numByteReceive = 1024
 user = {"username": "", "password": "", "fullname": "", "birth": "", "notelist": ""}
 

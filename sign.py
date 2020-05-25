@@ -1,4 +1,5 @@
 from getpass import getpass
+import crypt as cr
 
 def sign():
     print("What do you want to do:")
@@ -28,6 +29,8 @@ def encrypt(user):
         print("Your information has been encrypted")
         #add code below this line
             #encrypt password
+        affine = cr.Affine()
+        affine.encrypt(user["password"])
         #add code above this line
         return user
     else:
