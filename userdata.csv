@@ -1,2 +1,7 @@
-﻿username,password,status,date,fullname,note
-admin,admin,off,25-05-20,admin,tesstting
+username,password,fullname,birth,notelist,status
+admin,admin,admin,25-05-2020,tesstting,off
+ad2,ad2,ad2,12-02-2020,hello,off
+asdqw,asdqw,asdqw,12,,off
+ssdqw,45456,sdqww,15/05/1999,,off
+minhan,456789,abbbb,12/04/1999,,off
+thanhbinh,binh123,Thanh Binh,5/4/2000,,off
