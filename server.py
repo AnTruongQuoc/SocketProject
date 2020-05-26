@@ -1,5 +1,6 @@
 import socket, threading
 import pandas as pd #convert csv to dictionary
+import pickle
 
 #HOST = socket.gethostname()
 HOST = 'localhost'
@@ -18,26 +19,86 @@ class ClientThread(threading.Thread):
         print("Connection from: ", self.caddress)
         while (True):
             data = self.csocket.recv(numByteReceive)
-            if (data.decode("utf-8") == "1"):
+            
+            if (data.decode("utf-8") == "quit"):
+                self.csocket.send(bytes("exit","utf8"))
+                self.csocket.close()
                 break
             else:
                 print("From client ", self.caddress, " content:", data.decode("utf-8"))
             
-        print("Client at ", self.caddress, " disconnected...")
-#Class for multithread server socket
+            if (data.decode("utf-8") == "regis"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                #print("Message: ", userdata)
 
+                if check_user_regis(userdata):
+                    self.csocket.send(bytes("regis_success", "utf-8"))
+                else: 
+                    self.csocket.send(bytes("regis_fail", "utf-8"))
+            elif (data.decode("utf-8") == "login"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+
+                if check_user_login(userdata):
+                    self.csocket.send(bytes("success", "utf-8"))
+                else: 
+                    self.csocket.send(bytes("login_fail", "utf-8"))
+        print("Client at ", self.caddress, " disconnected...")
+    
+#Class for multithread server socket
+def check_user_login(user):
+    
+    count = 0
+    for x in user_data["username"]:
+        if user["username"] == x:
+            print(x)
+            print(user_data.at[count, 'password'])
+            if user["password"] == user_data.at[count, 'password']:
+                
+                user_data.loc[count, 'status'] = "online"
+                print(user_data)
+                return True
+        count += 1
+    
+    return False       
+    
+def check_user_regis(user):
+    for x in user_data["username"]:
+        if user["username"] == x:
+            return False
+    
+    #new = pd.DataFrame([user])
+    
+    #print(new.dtypes)
+    #user_data.update(user_data.append(new, ignore_index=True))
+    total_row = user_data.shape[0]
+    user_data.loc[total_row] = [user["username"], user["password"], user["fullname"], user["birth"], user["notelist"], user["status"]]
+    #print("So dong: ", total_row)
+    print(user_data)
+    
+    user_data.to_csv("userdata.csv", index=False)
+    return True
+
+def incoming_connection():
+    while True:
+        clientsocket, address = s.accept() #chấp nhận kết nối
+        newthread = ClientThread(address, clientsocket)
+        newthread.start() #start() sử dụng để chạy thread
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #cấu hình kết nối
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((HOST, PORT)) #lắng nghe kết nối
-s.listen(numOfConnet) #thiết lập số kết nối đồng thời
 
-user_data = pd.read_csv("userdata.csv")
+if __name__ == "__main__":
+    s.listen(numOfConnet) #thiết lập số kết nối đồng thời
 
-print("Server started at ", HOST, ":", PORT)
-print("Waiting for client request")
+    user_data = pd.read_csv("userdata.csv")
+    print(user_data)
+    print("Server started at ", HOST, ":", PORT)
+    print("Waiting for client request")
 
-while (True):
-    clientsocket, address = s.accept() #chấp nhận kết nối
-    newthread = ClientThread(address, clientsocket)
-    newthread.start() #start() sử dụng để chạy thread
+    NEW_THREAD = threading.Thread(target=incoming_connection)
+    NEW_THREAD.start()
+    NEW_THREAD.join()
+    s.close()
