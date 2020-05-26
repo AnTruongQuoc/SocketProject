@@ -13,7 +13,11 @@ port = 8080
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((host, 8080)) #must change port from string to int
 numByteReceive = 1024
-user = {"username": "", "password": "", "fullname": "", "birth": "", "notelist": ""}
+user = {"username": "", "password": "", "fullname": "", "birth": "", "notelist": "", "status": "off"}
+
+def quit():
+    s.send(bytes("quit", "utf-8"))
+    return
 
 def log():
     global user
@@ -23,14 +27,33 @@ def log():
         s.send(bytes("login", "utf-8"))
         msg = pickle.dumps(user)
         s.send(msg)
-    else:
+    elif (choice == "2"):
         user = sign.regis(user)
+        print("User info", user)
         s.send(bytes("regis", "utf-8"))
         msg = pickle.dumps(user)
+        print("User info dump", msg)
         s.send(msg)
+    else:
+        quit()
     msg = s.recv(numByteReceive)
+    
     if msg.decode("utf-8") == "success":
+        print('Hello, ', user["username"], '!')
         return True
+    elif msg.decode("utf-8") == "regis_success":
+        str = "regis_success"
+        return str
+    elif msg.decode("utf-8") == "regis_fail":
+        print("Username is already existed. Please use another username")
+        return log()
+    elif msg.decode("utf-8") == "login_fail":
+        print("Username or passsword incorrect !!!")
+        return log()
+    elif msg.decode("utf-8") == "exit":
+        str = "exit"
+        print("Disconnected")
+        return str
     else:
         print("Something went wrong!!")
         tempInput = input("Press anykey to try again")
@@ -61,24 +84,73 @@ def setupInfo(option):
 
 def analyzeCommand(command):
     splitCmd = re.split("\s", command)
+    print(splitCmd)
     if splitCmd[0] == "change_password":
         changePass()
     elif splitCmd[0] == "check_user":
         checkUser(splitCmd[2], splitCmd[1])
     elif splitCmd[0] == "setup_info":
         setupInfo(splitCmd[1])
+    elif splitCmd[0] == "/help" and len(splitCmd) < 2:
+        help()
+    elif splitCmd[0] == "/help" and splitCmd[1] == "change_password":
+        help_details(1)
+    elif splitCmd[0] == "/help" and splitCmd[1] == "check_user":
+        help_details(2)
+    elif splitCmd[0] == "/help" and splitCmd[1] == "setup_info":
+        help_details(3)
+    elif splitCmd[0] == "quit":
+        quit()
+        msg = s.recv(numByteReceive)
+        if msg.decode("utf-8") == "exit":
+            str = "exit"
+            print("Disconnected")
+            return str
     else:
+        print("Invalid Command. Try again !")
+    return 0
 
-
-        
-        return 0
-
+def help_details(command):
+    if command == 1:
+        print('change_password [username]      : Change your password')
+        print('\n')
+    elif command == 2:
+        print('check_user [-option] [username] : Check user infomation')
+        print('\t -find         : check user account exist in database')
+        print('\t -online       : check online status of user')
+        print('\t -show_date    : show date of birth of user')
+        print('\t -show_fullname: show name of user')
+        print('\t -show_note    : show note of user')
+        print('\t -show_all     : show all infomations of user')
+        print('\n')
+    elif command == 3:
+        print('setup_info [-option] : Setup infomation of user')
+        print('\t -fullname [name]  : Update name of user')
+        print('\t -date [birthday]  : Update date of birth of user')
+        print('\n')
+    return
+def help():
+    print('change_password [username]      : Change your password')
+    print('check_user [-option] [username] : Check user infomation')
+    print('setup_info [-option]            : Setup your infomation')
+    print('--> For more details: Type "/help command" - Ex: /help check_user')
+    return
 def main():
-    if log() == True:
+    log_state = log()
+    if log_state == True:
         print("You have successfully connected to the server!!!!")
+    elif log_state == "regis_success":
+        print("registration successful you can login now")
+        main()
+    elif log_state == "exit":
+        return
     
+    print('Type "/help" to know more about commands')
     while(True):
-        command = input()
+        command = input(">> ")
+        a = analyzeCommand(command)
+        if a == "exit":
+            break
 
 
 main()
