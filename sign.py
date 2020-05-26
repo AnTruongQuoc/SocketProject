@@ -5,7 +5,13 @@ def sign():
     print("What do you want to do:")
     print("1. Sign In")
     print('2. Sign Up')
-    result = input("Input (1/2):")
+    print("3. Quit")
+    result = input("Input (1/2/3):")
+    print(result)
+    if(result != "1" and result != "2" and result != "3"):
+        print("Wrong choice! Please chose again")
+        return sign()
+    
     return result
 
 def login(user):
