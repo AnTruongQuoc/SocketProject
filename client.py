@@ -15,8 +15,8 @@ s.connect((host, 8080)) #must change port from string to int
 numByteReceive = 1024
 user = {"username": "", "password": "", "fullname": "", "birth": "", "notelist": "", "status": "off"}
 
-def quit():
-    s.send(bytes("quit", "utf-8"))
+def login_quit():
+    s.send(bytes("login_quit", "utf-8"))
     return
 
 def log():
@@ -34,13 +34,21 @@ def log():
         msg = pickle.dumps(user)
         print("User info dump", msg)
         s.send(msg)
+    elif (choice == "3"):
+        user = sign.unlogin_changePassword(user)
+        s.send(bytes("unlogin_cpass", "utf-8"))
+        msg = pickle.dumps(user)
+        s.send(msg)
     else:
-        quit()
+        s.send(bytes("quit", "utf-8"))
     msg = s.recv(numByteReceive)
     
     if msg.decode("utf-8") == "success":
         print('Hello, ', user["username"], '!')
         return True
+    elif msg.decode("utf-8") == "000":
+        print('This account has been logged in from another client')
+        return log()
     elif msg.decode("utf-8") == "regis_success":
         str = "regis_success"
         return str
@@ -54,6 +62,15 @@ def log():
         str = "exit"
         print("Disconnected")
         return str
+    elif msg.decode("utf-8") == "cpass_200":
+        newpass = getpass("New password >> ")
+        user['password'] = newpass
+        s.send(pickle.dumps(user))
+        print(s.recv(numByteReceive).decode("utf-8"))
+        return log()
+    elif msg.decode("utf-8") == "cpass_404":
+        print("Username or passsword incorrect !!!")
+        return log()
     else:
         print("Something went wrong!!")
         tempInput = input("Press anykey to try again")
@@ -61,12 +78,16 @@ def log():
 
 def changePass():
     global user
-    newPass = sign.changePass(user)
+    newPass = sign.changePassword(user)
     if newPass == False:
         return False
     s.send(bytes("newpass", "utf-8"))
     msg = pickle.dumps(user)
     s.send(msg)
+    server_msg = s.recv(numByteReceive).decode("utf-8")
+    print(server_msg)
+
+    return
 
 def checkUser(username, option):
     s.send(bytes("check"),"utf-8")
@@ -100,12 +121,20 @@ def analyzeCommand(command):
     elif splitCmd[0] == "/help" and splitCmd[1] == "setup_info":
         help_details(3)
     elif splitCmd[0] == "quit":
-        quit()
+        login_quit()
         msg = s.recv(numByteReceive)
+        s.send(bytes(user["username"], "utf-8"))
         if msg.decode("utf-8") == "exit":
             str = "exit"
             print("Disconnected")
             return str
+    elif splitCmd[0] == "log_out":
+        s.send(bytes("log_out", "utf-8"))
+        msg = s.recv(numByteReceive)
+        s.send(bytes(user["username"], "utf-8"))
+        if msg.decode("utf-8") == "log_out_success":
+            print("Logged out")
+            return "log_out"
     else:
         print("Invalid Command. Try again !")
     return 0
@@ -140,7 +169,7 @@ def main():
     if log_state == True:
         print("You have successfully connected to the server!!!!")
     elif log_state == "regis_success":
-        print("registration successful you can login now")
+        print("Registration successful you can login now")
         main()
     elif log_state == "exit":
         return
@@ -150,8 +179,9 @@ def main():
         command = input(">> ")
         a = analyzeCommand(command)
         if a == "exit":
+            return
+        if a == "log_out":
             break
-
-
+    main()
 main()
 s.close()

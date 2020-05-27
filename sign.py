@@ -5,10 +5,11 @@ def sign():
     print("What do you want to do:")
     print("1. Sign In")
     print('2. Sign Up')
-    print("3. Quit")
-    result = input("Input (1/2/3):")
+    print('3. Change Password')
+    print("4. Quit")
+    result = input("Input (1/2/3/4):")
     print(result)
-    if(result != "1" and result != "2" and result != "3"):
+    if(result != "1" and result != "2" and result != "3" and result != "4"):
         print("Wrong choice! Please chose again")
         return sign()
     
@@ -42,13 +43,17 @@ def encrypt(user):
     else:
         print("You choose not to encrypt your password.")
         return user
-
+def unlogin_changePassword(user):
+    user["username"] = input("Username >> ")
+    user["password"] = getpass("Current password >> ")
+    return user
 def changePassword(user):
-    oldPass = getpass("password: ")
+    oldPass = getpass("Current password >> ")
     if oldPass == user["password"]:
-        newPass = getpass("new password: ")
+        newPass = getpass("New password    >> ")
         user["password"] = newPass
         user = encrypt(user)
         return user["password"]
     else:
+        print("Wrong old password")
         return False

@@ -20,13 +20,29 @@ class ClientThread(threading.Thread):
         while (True):
             data = self.csocket.recv(numByteReceive)
             
+            #QUIT STATUS
             if (data.decode("utf-8") == "quit"):
                 self.csocket.send(bytes("exit","utf8"))
                 self.csocket.close()
                 break
+            elif (data.decode("utf-8") == "login_quit"):
+                self.csocket.send(bytes("exit","utf8"))
+                ur = self.csocket.recv(numByteReceive)
+                txt = ur.decode("utf-8")
+                user_data.loc[memory[txt], 'status'] = "off"
+                self.csocket.close()
+                break
+            elif (data.decode("utf-8") == "log_out"):
+                self.csocket.send(bytes("log_out_success","utf8"))
+                ur = self.csocket.recv(numByteReceive)
+                txt = ur.decode("utf-8")
+                user_data.loc[memory[txt], 'status'] = "off"
+                print(user_data)
             else:
                 print("From client ", self.caddress, " content:", data.decode("utf-8"))
-            
+            #QUIT STATUS
+
+            #HANDLE_LOGIN_REGIS
             if (data.decode("utf-8") == "regis"):
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
@@ -40,13 +56,72 @@ class ClientThread(threading.Thread):
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
 
-                if check_user_login(userdata):
+                if check_user_login(userdata) == True:
                     self.csocket.send(bytes("success", "utf-8"))
+                elif check_user_login(userdata) == "000":
+                    self.csocket.send(bytes("000", "utf-8"))
                 else: 
                     self.csocket.send(bytes("login_fail", "utf-8"))
+            #HANDLE_LOGIN_REGIS
+
+            #CHANGE PASSWORD
+            if (data.decode("utf-8") == "newpass"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                handle_changepass(userdata)
+                self.csocket.send(bytes("Change password successfully", "utf-8"))
+            elif (data.decode("utf-8") == "unlogin_cpass"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+
+                if check_user_cpass(userdata):
+                    self.csocket.send(bytes("cpass_200", "utf-8"))
+                    obj = self.csocket.recv(4098)
+                    newpass = pickle.loads(obj)
+                    handle_unlogin_cpass(newpass)
+                    self.csocket.send(bytes("Change password successfully", "utf-8"))
+                else:
+                    self.csocket.send(bytes("cpass_404", "utf-8"))
         print("Client at ", self.caddress, " disconnected...")
     
 #Class for multithread server socket
+def handle_unlogin_cpass(user):
+    count = 0
+    for x in user_data["username"]:
+        if user["username"] == x:
+            print(x)
+            print(user_data.at[count, 'password'])
+            user_data.loc[count, 'password'] = user["password"]
+            print("newpassword: ",user_data.at[count, 'password'])
+            #save to database
+            user_data.to_csv("userdata.csv", index=False)
+            break
+        count +=1
+    return
+def check_user_cpass(user):
+    count = 0
+    for x in user_data["username"]:
+        if user["username"] == x:
+            if user["password"] == user_data.at[count, 'password']:
+                return True
+        count +=1
+
+    return False
+def handle_changepass(user): #handle changpassword when user already log in
+    count = 0
+    for x in user_data["username"]:
+        if user["username"] == x:
+            print(x)
+            print(user_data.at[count, 'password'])
+            user_data.loc[count, 'password'] = user["password"]
+            user_data.loc[count, 'status'] = "off"
+            print("newpassword: ",user_data.at[count, 'password'])
+            #save to database
+            user_data.to_csv("userdata.csv", index=False)
+            user_data.loc[count, 'status'] = "online"
+            break
+        count += 1
+    return
 def check_user_login(user):
     
     count = 0
@@ -55,9 +130,13 @@ def check_user_login(user):
             print(x)
             print(user_data.at[count, 'password'])
             if user["password"] == user_data.at[count, 'password']:
-                
+                print(user_data.at[count, 'status'] == "online")
+                if user_data.at[count, 'status'] == "online":
+                    return "000"
                 user_data.loc[count, 'status'] = "online"
+                memory.update({user["username"]: count})
                 print(user_data)
+                print(memory)
                 return True
         count += 1
     
@@ -93,6 +172,7 @@ s.bind((HOST, PORT)) #lắng nghe kết nối
 if __name__ == "__main__":
     s.listen(numOfConnet) #thiết lập số kết nối đồng thời
 
+    memory = dict()
     user_data = pd.read_csv("userdata.csv")
     print(user_data)
     print("Server started at ", HOST, ":", PORT)
