@@ -103,15 +103,29 @@ def checkUser(username, option):
         info = s.recv(numByteReceive)
         user_info = pickle.loads(info)
         print_user_info(user_info)
+    elif rep.decode("utf-8") == "err_option":
+        err = s.recv(numByteReceive)
+        opt = err.decode("utf-8")
+        print(">> ERROR: Option " + opt + " is invalid")
     else:
         print(rep.decode("utf-8"))
 
-def setupInfo(option):
-    global user
-    s.send(bytes("update"),"utf-8")
-    s.send(bytes(user["username"]),"utf-8")
-    s.send(bytes(option),"utf-8")
-    msg = s.recv(numByteReceive)
+def setupInfo(option, content):
+    pack = {
+        "option": option,
+        "content": content,
+        "username": user["username"] 
+    }
+    s.send(bytes("set_info", "utf-8"))
+    msg = pickle.dumps(pack)
+    s.send(msg)
+
+    rep = s.recv(numByteReceive)
+    if rep.decode("utf-8") == "set_success":
+        print(">> Change Info Successful")
+    else:
+        err = rep.decode("utf-8")
+        print(">> ERROR: Option " + err + " is invalid")
 
 def analyzeCommand(command):
     splitCmd = re.split("\s", command)
@@ -120,8 +134,8 @@ def analyzeCommand(command):
         changePass()
     elif splitCmd[0] == "check_user" and len(splitCmd) == 3:
         checkUser(splitCmd[2], splitCmd[1])
-    elif splitCmd[0] == "setup_info":
-        setupInfo(splitCmd[1])
+    elif splitCmd[0] == "setup_info" and len(splitCmd) == 3:
+        setupInfo(splitCmd[1], splitCmd[2])
     elif splitCmd[0] == "/help" and len(splitCmd) < 2:
         help()
     elif splitCmd[0] == "/help" and splitCmd[1] == "change_password":
@@ -168,6 +182,7 @@ def help_details(command):
         print('setup_info [-option] : Setup infomation of user')
         print('\t -fullname [name]  : Update name of user')
         print('\t -date [birthday]  : Update date of birth of user')
+        print('\t -note [note]  : Update note of user')
         print('\n')
     return
 def help():

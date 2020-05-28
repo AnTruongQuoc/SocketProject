@@ -99,13 +99,52 @@ class ClientThread(threading.Thread):
                         self.csocket.send(bytes("user_obj", "utf-8"))
                         msg = pickle.dumps(rep)
                         self.csocket.send(msg)
+                    elif rep == False:
+                        self.csocket.send(bytes("err_option", "utf-8"))
+                        self.csocket.send(bytes(userdata["option"], "utf-8"))
                     else:
                         self.csocket.send(bytes(rep, "utf-8"))
+            #CHECK USER
 
+            #SETUP INFO
+            if (data.decode("utf-8") == "set_info"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                result = handle_setup_info(userdata)
+                if result == True:
+                    self.csocket.send(bytes("set_success", "utf-8"))
+                else:
+                    self.csocket.send(bytes(result, "utf-8"))
+
+            #SETUP INFO
             
         print("Client at ", self.caddress, " disconnected...")
     
 #Class for multithread server socket
+
+def handle_setup_info(info):
+
+    pos = memory[info["username"]]
+    #setup info
+    option = info["option"]
+    
+    if option == "-fullname":
+        user_data.loc[pos, 'fullname'] = info["content"]
+    elif option == "-date":
+        user_data.loc[pos, 'brith'] = info["content"]
+    elif option == "-note":
+        user_data.loc[pos, 'notelist'] = info["content"]
+    else:
+        return option
+    #save to database
+    user_data.loc[pos, 'status'] = "off"
+    #user_data.to_csv("userdata.csv", index=False)
+    print(user_data)
+    user_data.loc[pos, 'status'] = "online"
+    
+    return True
+
+#Function of CHECK_USER
 def option_check(user, count):
     option = user["option"]
     
@@ -141,6 +180,8 @@ def option_check(user, count):
         })
         print("debug note: ", user_data.at[count, 'notelist'])
         return info
+    
+    return False
         
 def find_user(user):
     count = 0
@@ -150,6 +191,7 @@ def find_user(user):
         count+=1
   
     return "False" #count = 0 <=> False so returning str
+
 def handle_unlogin_cpass(user): #Change password when user not log in
     count = 0
     for x in user_data["username"]:
