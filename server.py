@@ -82,10 +82,75 @@ class ClientThread(threading.Thread):
                     self.csocket.send(bytes("Change password successfully", "utf-8"))
                 else:
                     self.csocket.send(bytes("cpass_404", "utf-8"))
+            #CHANGE PASSWORD
+
+            #CHECK USER
+            if (data.decode("utf-8") == "check_user"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                
+                check = find_user(userdata)
+                if check == "False":
+                    self.csocket.send(bytes("user_404", "utf-8"))
+                else:
+                    rep = option_check(userdata, check)
+
+                    if userdata["option"] == "-show_all":
+                        self.csocket.send(bytes("user_obj", "utf-8"))
+                        msg = pickle.dumps(rep)
+                        self.csocket.send(msg)
+                    else:
+                        self.csocket.send(bytes(rep, "utf-8"))
+
+            
         print("Client at ", self.caddress, " disconnected...")
     
 #Class for multithread server socket
-def handle_unlogin_cpass(user):
+def option_check(user, count):
+    option = user["option"]
+    
+    if option == "-find":
+        msg = user["username"] + " is in database"
+        return msg
+    if option == "-online":
+        msg = user["username"] + " is offline"
+        if user_data.at[count, 'status'] == "online":
+            msg = user["username"] + " is online"
+            return msg
+        return msg
+    if option == "-show_date":
+        msg = ">> Birthday of " + user["username"] +": "+  user_data.at[count, 'birth']
+        
+        return msg
+    if option == "-show_fullname":
+        msg =  ">> Fullname of " +user["username"] +": "+ user_data.at[count, 'fullname']
+        
+        return msg
+    if option == "-show_note":
+        msg =  ">> Notes of " + user["username"] +": "+ user_data.at[count, 'notelist']
+        
+        return msg
+    if option == "-show_all":
+        info = dict()
+        info.update({
+            "Username": user["username"],
+            "Status": user_data.at[count, 'status'],
+            "Fullname": user_data.at[count, 'fullname'],
+            "Birthday": user_data.at[count, 'birth'],
+            "Note": user_data.at[count, 'notelist'],
+        })
+        print("debug note: ", user_data.at[count, 'notelist'])
+        return info
+        
+def find_user(user):
+    count = 0
+    for x in user_data["username"]:
+        if user["username"] == x:
+            return count
+        count+=1
+  
+    return "False" #count = 0 <=> False so returning str
+def handle_unlogin_cpass(user): #Change password when user not log in
     count = 0
     for x in user_data["username"]:
         if user["username"] == x:

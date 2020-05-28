@@ -47,20 +47,20 @@ def log():
         print('Hello, ', user["username"], '!')
         return True
     elif msg.decode("utf-8") == "000":
-        print('This account has been logged in from another client')
+        print('>> NOTICE: This account has been logged in from another client')
         return log()
     elif msg.decode("utf-8") == "regis_success":
         str = "regis_success"
         return str
     elif msg.decode("utf-8") == "regis_fail":
-        print("Username is already existed. Please use another username")
+        print(">> ERROR:Username is already existed. Please use another username")
         return log()
     elif msg.decode("utf-8") == "login_fail":
-        print("Username or passsword incorrect !!!")
+        print(">> ERROR: Username or passsword incorrect !!!")
         return log()
     elif msg.decode("utf-8") == "exit":
         str = "exit"
-        print("Disconnected")
+        print(">> CLIENT: Disconnected")
         return str
     elif msg.decode("utf-8") == "cpass_200":
         newpass = getpass("New password >> ")
@@ -90,11 +90,21 @@ def changePass():
     return
 
 def checkUser(username, option):
-    s.send(bytes("check"),"utf-8")
-    s.send(bytes(username),"utf-8")
-    s.send(bytes(option),"utf-8")
-    msg = s.recv(numByteReceive)
-    print(msg.decode("utf-8"))
+    pack = {"option": option,"username": username}
+    s.send(bytes("check_user", "utf-8"))
+    msg = pickle.dumps(pack)
+    s.send(msg)
+
+    rep = s.recv(numByteReceive)
+    if rep.decode("utf-8") == "user_404":
+        print("404: USER NOT FOUND")
+
+    if rep.decode("utf-8") == "user_obj":
+        info = s.recv(numByteReceive)
+        user_info = pickle.loads(info)
+        print_user_info(user_info)
+    else:
+        print(rep.decode("utf-8"))
 
 def setupInfo(option):
     global user
@@ -105,10 +115,10 @@ def setupInfo(option):
 
 def analyzeCommand(command):
     splitCmd = re.split("\s", command)
-    print(splitCmd)
+    print(splitCmd) #use for debugging
     if splitCmd[0] == "change_password":
         changePass()
-    elif splitCmd[0] == "check_user":
+    elif splitCmd[0] == "check_user" and len(splitCmd) == 3:
         checkUser(splitCmd[2], splitCmd[1])
     elif splitCmd[0] == "setup_info":
         setupInfo(splitCmd[1])
@@ -138,7 +148,9 @@ def analyzeCommand(command):
     else:
         print("Invalid Command. Try again !")
     return 0
-
+def print_user_info(info):
+    for x in info:
+        print(x + ": " + str(info[x]))
 def help_details(command):
     if command == 1:
         print('change_password [username]      : Change your password')
