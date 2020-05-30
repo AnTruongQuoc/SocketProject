@@ -1,7 +1,7 @@
 import socket, threading
 import pandas as pd #convert csv to dictionary
 import pickle
-
+import time
 #HOST = socket.gethostname()
 HOST = 'localhost'
 PORT = 8080
@@ -19,11 +19,13 @@ class ClientThread(threading.Thread):
     def run(self):
         print("Connection from: ", self.caddress)
         while (True):
+            
             self.csocket.send(bytes("Server", "utf-8"))
+            print("Sever sent message, waiting for response")
             data = self.csocket.recv(numByteReceive)
             
             if (data.decode("utf-8") == "cli_accept"):
-                print("Client 2 is going to handle_chat")
+                print("Client " + clients[self.csocket] + " is going to handle_chat")
                 self.handle_chat()
 
             #QUIT STATUS
@@ -113,6 +115,7 @@ class ClientThread(threading.Thread):
                         self.csocket.send(bytes(userdata["option"], "utf-8"))
                     else:
                         self.csocket.send(bytes(rep, "utf-8"))
+                time.sleep(0.2)
             #CHECK USER
 
             #SETUP INFO
@@ -141,24 +144,34 @@ class ClientThread(threading.Thread):
                             self.csocket: clients[self.csocket],
                             clisocket: user 
                         })
+                        print("Chat List: ", chat_list)
                         clisocket.send(bytes("chat " + clients[self.csocket], "utf-8"))
                         self.csocket.send(bytes("onl","utf-8"))
                         print("Client 1 is going into handle_chat")
                         self.handle_chat()
+                        print("DEBUG: Client 1 out chatroom")
                         
                     else:
                         mes = user + " is offline"
                         self.csocket.send(bytes(mes,"utf-8"))
+                time.sleep(0.2)
             #CHAT
         print("Client at ", self.caddress, " disconnected...")
     def handle_chat(self):
         while True:
             mes = self.csocket.recv(1024)
             if mes.decode('utf-8') == "quit":
-                broadcast(bytes("%s has left the chat." % chat_list[self.csocket],"utf8"))
-                break
-            print("Incoming mess: " + chat_list[self.csocket] + ": " + mes.decode('utf-8'))
-            broadcast(mes, chat_list[self.csocket]+ ": ")
+                if len(chat_list) < 2:
+                    chat_list.clear()
+                    break
+                else:
+                    name = chat_list[self.csocket]
+                    chat_list.pop(self.csocket)
+                    broadcast(bytes("%s has left the chat." % name,"utf8"))
+                    break
+            else:
+                print("Incoming mess: " + chat_list[self.csocket] + ": " + mes.decode('utf-8'))
+                broadcast(mes, chat_list[self.csocket]+ ": ")
         
 #Class for multithread server socket
 def find_clisocket_in_clients_byname(username):
@@ -194,9 +207,9 @@ def handle_setup_info(info):
     #save to database
     user_data.loc[pos, 'status'] = "off"
     #user_data.to_csv("userdata.csv", index=False)
-    print(user_data)
-    user_data.loc[pos, 'status'] = "online"
     
+    user_data.loc[pos, 'status'] = "online"
+    print(user_data)
     return True
 
 #Function of CHECK_USER

@@ -137,22 +137,33 @@ def setupInfo(option, content):
 
 
 def recive():
+    global stop_msg
+    print("Open Thread Recive")
     while True:
+        #print("Thread is working")
         try:
-            if stop_thread:
-                break
-            msg = s.recv(numByteReceive)
-            m = msg.decode('utf-8')
-            lists.append(m)
-            recall = "cli_res"
-            press(recall)
-            #msg_list.insert(tkinter.END,msg)
+            if stop_msg:
+                pass
+            else:
+                msg = s.recv(numByteReceive)
+                m = msg.decode('utf-8')
+                if m == "Server":
+                    pass
+                else:
+                    print("Recive: ", m)
+                    lists.append(m)
+                    recall = "cli_res"
+                    #press(recall)
+                
         except OSError:
+            print("Thread Error")
             break
 
 
 
 def chat_with_user(username):
+    global stop_msg
+    global app
     s.send(bytes("chat", "utf-8"))
     s.send(bytes(username, "utf-8"))
 
@@ -164,9 +175,12 @@ def chat_with_user(username):
         #r = s.recv(numByteReceive).decode("utf-8")
         if r == "onl":
             #dosth
-            recive_thread = Thread(target=recive)
-            recive_thread.start()
-            chatbox() 
+            stop_msg = False
+            app = None
+            chatbox()
+           
+            print("DEBUG: OUT CHATBOX")
+             
         else:
             print(r)
     
@@ -244,20 +258,25 @@ def help():
 
 
 def press(btn):
+    global app
     if btn == "Send":
         note = app.getEntry("e1")
         s.send(bytes(note, "utf-8"))
         #lists.append(note)
         #app.updateListBox("list", lists, False, False)
     elif btn == "Leave":
-        global stop_thread
+        global stop_msg
+        stop_msg = True
         s.send(bytes("quit", "utf-8"))
-        stop_thread = True
+        #tmp = s.recv(numByteReceive)
+        #print(tmp.decode('utf-8'))
         app.stop()
-    if btn == "cli_res":
+    elif btn == "cli_res":
         app.updateListBox("list", lists, False, False)
 
 def chatbox():
+    global app
+    app = gui(user["username"], "300x300")
     app.setFont(20)
     app.addLabel("title", " Welcome to Chatroom ") 
     app.startScrollPane("PANE")
@@ -271,44 +290,57 @@ def chatbox():
 
 
 def main():
+    global stop_msg
+    global app
+    loop = True
     log_state = log()
-    if log_state == True:
-        #handlethread = Thread(target=handle_thread)
-        #handlethread.start()
-        print("You have successfully connected to the server!!!!")
-    elif log_state == "regis_success":
-        print("Registration successful you can login now")
-        main()
-    elif log_state == "exit":
-        return
-    
-    print('Type "/help" to know more about commands')
-    
-    
-    while(True):
-        data = s.recv(1024).decode("utf-8")
-        splitData = re.split("\s", data)
-        if (splitData[0] == "chat"):
-            s.send(bytes("cli_accept", "utf-8"))
-            name = splitData[1]
-            print(">> SERVER: User " + name + " want to chat with you.")
-            recive_thread = Thread(target=recive)
-            recive_thread.start()
-            chatbox()
-        print(data)
-        command = input(">> ")
-        a = analyzeCommand(command)
-        if a == "exit":
+    while loop:
+        if log_state == True:
+            #handlethread = Thread(target=handle_thread)
+            #handlethread.start()
+            print("You have successfully connected to the server!!!!")
+        elif log_state == "regis_success":
+            print("Registration successful you can login now")
+            main()
+        elif log_state == "exit":
             return
-        if a == "log_out":
-            break
-        
-        
-    main()
 
-stop_thread = False
+        print('Type "/help" to know more about commands')
+
+
+        recive_thread = Thread(target=recive)
+        recive_thread.start()
+
+        while True:
+            data = s.recv(1024).decode("utf-8")
+            splitData = re.split("\s", data)
+            if (splitData[0] == "chat"):
+                s.send(bytes("cli_accept", "utf-8"))
+                name = splitData[1]
+                print(">> SERVER: User " + name + " want to chat with you.")
+
+                stop_msg = False
+                app = None
+                chatbox()
+                #recive_thread.join()
+                #trash = s.recv(numByteReceive)
+                #print(trash.decode('utf-8') + ": Quit")
+            #print(data)
+            command = input(">> ")
+            print("DEBUG: command -> ", command)
+            a = analyzeCommand(command)
+            if a == "exit":
+                loop = False
+                return
+            if a == "log_out":
+                recive_thread.join()
+                break
+        #break       
+
+stop_msg = True
 lists = []
-app = gui("Chatter", "300x300")
+app = None
 
-main()
-s.close()
+if __name__ == "__main__":
+    main()
+    s.close()
