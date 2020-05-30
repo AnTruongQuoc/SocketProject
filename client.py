@@ -249,6 +249,7 @@ def press(btn):
         #app.updateListBox("list", lists, False, False)
     elif btn == "Leave":
         global stop_thread
+        s.send(bytes("quit", "utf-8"))
         stop_thread = True
         app.stop()
     if btn == "cli_res":

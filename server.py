@@ -154,6 +154,9 @@ class ClientThread(threading.Thread):
     def handle_chat(self):
         while True:
             mes = self.csocket.recv(1024)
+            if mes.decode('utf-8') == "quit":
+                broadcast(bytes("%s has left the chat." % chat_list[self.csocket],"utf8"))
+                break
             print("Incoming mess: " + chat_list[self.csocket] + ": " + mes.decode('utf-8'))
             broadcast(mes, chat_list[self.csocket]+ ": ")
         
