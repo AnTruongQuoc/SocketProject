@@ -230,6 +230,7 @@ def help_details(command):
         print('\t -date [birthday]  : Update date of birth of user')
         print('\t -note [note]  : Update note of user')
         print('\n')
+    s.send(bytes("help_detail", "utf-8"))
     return
 def help():
     print('change_password [username]      : Change your password')
@@ -237,6 +238,7 @@ def help():
     print('setup_info [-option]            : Setup your infomation')
     print('char [username]                 : Chat with another user')
     print('--> For more details: Type "/help command" - Ex: /help check_user')
+    s.send(bytes("help", "utf-8"))
     return
 
 
