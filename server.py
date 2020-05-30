@@ -8,6 +8,7 @@ PORT = 8080
 numOfConnet = 5
 numByteReceive = 1024
 
+
 #Class for multithread server socket
 class ClientThread(threading.Thread):
     def __init__(self,clientAddress,clientsocket):
@@ -18,8 +19,13 @@ class ClientThread(threading.Thread):
     def run(self):
         print("Connection from: ", self.caddress)
         while (True):
+            self.csocket.send(bytes("Server", "utf-8"))
             data = self.csocket.recv(numByteReceive)
             
+            if (data.decode("utf-8") == "cli_accept"):
+                print("Client 2 is going to handle_chat")
+                self.handle_chat()
+
             #QUIT STATUS
             if (data.decode("utf-8") == "quit"):
                 self.csocket.send(bytes("exit","utf8"))
@@ -58,6 +64,9 @@ class ClientThread(threading.Thread):
 
                 if check_user_login(userdata) == True:
                     self.csocket.send(bytes("success", "utf-8"))
+                    clients[self.csocket] = userdata["username"]
+                    print("\nCLIENTS: ", clients)
+                    print("\nADDR: ", address)
                 elif check_user_login(userdata) == "000":
                     self.csocket.send(bytes("000", "utf-8"))
                 else: 
@@ -118,9 +127,52 @@ class ClientThread(threading.Thread):
 
             #SETUP INFO
             
+            #CHAT
+            if (data.decode("utf-8") == "chat"):
+                user = self.csocket.recv(numByteReceive).decode("utf-8")
+                pack = {"username": user}
+                pos = find_user(pack)
+                if pos == "False":
+                    self.csocket.send(bytes("user_404", "utf-8"))
+                else:
+                    if check_user_online(user, pos):
+                        clisocket = find_clisocket_in_clients_byname(user)
+                        chat_list.update({
+                            self.csocket: clients[self.csocket],
+                            clisocket: user 
+                        })
+                        clisocket.send(bytes("chat " + clients[self.csocket], "utf-8"))
+                        self.csocket.send(bytes("onl","utf-8"))
+                        print("Client 1 is going into handle_chat")
+                        self.handle_chat()
+                        
+                    else:
+                        mes = user + " is offline"
+                        self.csocket.send(bytes(mes,"utf-8"))
+            #CHAT
         print("Client at ", self.caddress, " disconnected...")
-    
+    def handle_chat(self):
+        while True:
+            mes = self.csocket.recv(1024)
+            print("Incoming mess: " + chat_list[self.csocket] + ": " + mes.decode('utf-8'))
+            broadcast(mes, chat_list[self.csocket]+ ": ")
+        
 #Class for multithread server socket
+def find_clisocket_in_clients_byname(username):
+    for x in clients:
+        if clients[x] == username:
+            return x
+def broadcast(msg, prefix=""):
+    for client in clients:
+        client.send(bytes(prefix,"utf8") + msg)
+
+def check_user_online(username, pos):
+    for x in user_data["username"]:
+        if username == x:
+            if user_data.at[pos, 'status'] == 'online':
+                return True
+            else:
+                return False
 
 def handle_setup_info(info):
 
@@ -268,10 +320,15 @@ def check_user_regis(user):
 
 def incoming_connection():
     while True:
-        clientsocket, address = s.accept() #chấp nhận kết nối
-        newthread = ClientThread(address, clientsocket)
+        clientsocket, clientaddress = s.accept() #chấp nhận kết nối
+        address[clientsocket] = clientaddress
+        newthread = ClientThread(clientaddress, clientsocket)
         newthread.start() #start() sử dụng để chạy thread
 
+
+clients = {}
+address = {}
+chat_list = {}
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #cấu hình kết nối
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((HOST, PORT)) #lắng nghe kết nối
