@@ -9,17 +9,11 @@ import tkinter
 from threading import Thread
 from getpass import getpass
 from appJar import gui
+import time
 
 
 host = 'localhost'
 port = 8080
-
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((host, 8080)) #must change port from string to int
-numByteReceive = 1024
-user = {"username": "", "password": "", "fullname": "", "birth": "", "notelist": "", "status": "off"}
-
 
 
 def login_quit():
@@ -27,8 +21,7 @@ def login_quit():
     return
 
 def log():
-    rep = s.recv(1024).decode("utf-8")
-    global user
+    global user, newpass
     choice = sign.sign()
     if (choice == "1"):
         user = sign.login(user)
@@ -44,45 +37,12 @@ def log():
         s.send(msg)
     elif (choice == "3"):
         user = sign.unlogin_changePassword(user)
+        newpass = getpass("New password >> ")
         s.send(bytes("unlogin_cpass", "utf-8"))
         msg = pickle.dumps(user)
         s.send(msg)
     else:
         s.send(bytes("quit", "utf-8"))
-    msg = s.recv(numByteReceive)
-    
-    if msg.decode("utf-8") == "success":
-        print('Hello, ', user["username"], '!')
-        return True
-    elif msg.decode("utf-8") == "000":
-        print('>> NOTICE: This account has been logged in from another client')
-        return log()
-    elif msg.decode("utf-8") == "regis_success":
-        str = "regis_success"
-        return str
-    elif msg.decode("utf-8") == "regis_fail":
-        print(">> ERROR:Username is already existed. Please use another username")
-        return log()
-    elif msg.decode("utf-8") == "login_fail":
-        print(">> ERROR: Username or passsword incorrect !!!")
-        return log()
-    elif msg.decode("utf-8") == "exit":
-        str = "exit"
-        print(">> CLIENT: Disconnected")
-        return str
-    elif msg.decode("utf-8") == "cpass_200":
-        newpass = getpass("New password >> ")
-        user['password'] = newpass
-        s.send(pickle.dumps(user))
-        print(s.recv(numByteReceive).decode("utf-8"))
-        return log()
-    elif msg.decode("utf-8") == "cpass_404":
-        print("Username or passsword incorrect !!!")
-        return log()
-    else:
-        print("Something went wrong!!")
-        tempInput = input("Press anykey to try again")
-        return log()
 
 def changePass():
     global user
@@ -92,32 +52,13 @@ def changePass():
     s.send(bytes("newpass", "utf-8"))
     msg = pickle.dumps(user)
     s.send(msg)
-    server_msg = s.recv(numByteReceive).decode("utf-8")
-    print(server_msg)
-
-    return
-
+    
 def checkUser(username, option):
     pack = {"option": option,"username": username}
     s.send(bytes("check_user", "utf-8"))
     msg = pickle.dumps(pack)
     s.send(msg)
-
-    rep = s.recv(numByteReceive)
-    if rep.decode("utf-8") == "user_404":
-        print("404: USER NOT FOUND")
-
-    if rep.decode("utf-8") == "user_obj":
-        info = s.recv(numByteReceive)
-        user_info = pickle.loads(info)
-        print_user_info(user_info)
-    elif rep.decode("utf-8") == "err_option":
-        err = s.recv(numByteReceive)
-        opt = err.decode("utf-8")
-        print(">> ERROR: Option " + opt + " is invalid")
-    else:
-        print(rep.decode("utf-8"))
-
+    
 def setupInfo(option, content):
     pack = {
         "option": option,
@@ -128,65 +69,132 @@ def setupInfo(option, content):
     msg = pickle.dumps(pack)
     s.send(msg)
 
-    rep = s.recv(numByteReceive)
-    if rep.decode("utf-8") == "set_success":
-        print(">> Change Info Successful")
-    else:
-        err = rep.decode("utf-8")
-        print(">> ERROR: Option " + err + " is invalid")
-
 
 def recive():
-    global stop_msg
+    global app, login, out
     print("Open Thread Recive")
     while True:
         #print("Thread is working")
-        try:
-            if stop_msg:
-                pass
+          
+        msg = s.recv(numByteReceive)
+        #HANDLE QUIT
+        if msg.decode("utf-8") == "in_exit":
+            print(">> CLIENT: Disconnected")
+        if msg.decode("utf-8") == "log_out_success":
+            print("Logged out")
+        #HANDLE QUIT
+
+        #HANDLE LOGIN 
+        if msg.decode("utf-8") == "success":
+            login = True
+            print('Hello, ', user["username"], '!')
+        elif msg.decode("utf-8") == "000":
+            print('>> NOTICE: This account has been logged in from another client')
+        elif msg.decode("utf-8") == "regis_success":
+            print("Registration successful you can login now")
+        elif msg.decode("utf-8") == "regis_fail":
+            print(">> ERROR:Username is already existed. Please use another username")
+        elif msg.decode("utf-8") == "login_fail":
+            print(">> ERROR: Username or passsword incorrect !!!")
+        elif msg.decode("utf-8") == "exit":
+            out = True
+            print(">> CLIENT: Disconnected")
+            break 
+        #HANDLE LOGIN
+        
+        #HANDLE CHANGEPASS
+        if msg.decode("utf-8") == "log_cp_200":
+            print("[S]>> Change password successfully")
+        elif msg.decode("utf-8") == "cpass_200":
+            user['password'] = newpass
+            s.send(pickle.dumps(user))
+            print(s.recv(numByteReceive).decode("utf-8"))
+        elif msg.decode("utf-8") == "cpass_404":
+            print("[S]>> Username or passsword incorrect !!!")
+        #HANDLE CHANGEPASS
+
+        #HANDLE CHECK_USER
+        if msg.decode("utf-8") == "accept_ch_us":
+            rep = s.recv(numByteReceive)
+            if rep.decode("utf-8") == "user_obj":
+                info = s.recv(numByteReceive)
+                user_info = pickle.loads(info)
+                print_user_info(user_info)
+            elif rep.decode("utf-8") == "err_option":
+                err = s.recv(numByteReceive)
+                opt = err.decode("utf-8")
+                print(">> ERROR: Option " + opt + " is invalid")
+            elif rep.decode("utf-8") == "user_404":
+                print("404: USER NOT FOUND")
             else:
-                msg = s.recv(numByteReceive)
-                m = msg.decode('utf-8')
-                if m == "Server":
-                    pass
-                else:
-                    print("Recive: ", m)
-                    lists.append(m)
-                    recall = "cli_res"
-                    #press(recall)
-                
+                print(rep.decode("utf-8"))
+        #HANDLE CHECK_USER
+        #SETUP INFO
+        if msg.decode("utf-8") == "set_success":
+            print(">> Change Info Successful")
+        elif msg.decode("utf-8") == "set_fail":
+            rep = s.recv(numByteReceive)
+            err = rep.decode("utf-8")
+            print(">> ERROR: Option " + err + " is invalid")
+        #SETUP INFO
+        # HANDLE CHAT
+        if msg.decode("utf-8") == "chat_user_404":
+            print(">> ERROR: User not found")
+        elif msg.decode("utf-8") == "chat_user_onl":
+            chatbox_thread = Thread(target=chatbox)
+            chatbox_thread.setDaemon(True)
+            chatbox_thread.start()
+            handle_cli_chat()
+            #chatbox_thread.join()
+        elif msg.decode("utf-8") == "chat_user_off":
+            re = s.recv(numByteReceive).decode("utf-8")
+            print(re)
+            
+        if msg.decode("utf-8") == "chat_req":
+            s.send(bytes("cli_accept", "utf-8"))
+            #app = None
+            chatbox_thread = Thread(target=chatbox)
+            chatbox_thread.setDaemon(True)
+            chatbox_thread.start()
+            handle_cli_chat()
+            #chatbox_thread.join()      
+        # HANDLE CHAT   
+        
+
+
+def handle_cli_chat():
+    global leave
+    #print("Go to Handle Chat")
+    while True:
+        try:
+            
+            #s = "has left the chat"
+            mes = s.recv(numByteReceive)
+            m = mes.decode('utf-8')
+            if m == "leave_chat":
+                break
+            else:
+                lists.append(m)
+                recall = "cli_res"
+                press(recall)
+            
         except OSError:
-            print("Thread Error")
+            print("Errorrrrr")
             break
-
-
+    
+    return
 
 def chat_with_user(username):
     global stop_msg
     global app
+    #app = None
     s.send(bytes("chat", "utf-8"))
     s.send(bytes(username, "utf-8"))
-
-    rep = s.recv(numByteReceive)
-    r = rep.decode('utf-8')
-    if r == "user_404":
-        print(">> ERROR: User not found")
-    else:
-        #r = s.recv(numByteReceive).decode("utf-8")
-        if r == "onl":
-            #dosth
-            stop_msg = False
-            app = None
-            chatbox()
-           
-            print("DEBUG: OUT CHATBOX")
-             
-        else:
-            print(r)
+    
     
 def analyzeCommand(command):
     splitCmd = re.split("\s", command)
-    print(splitCmd) #use for debugging
+    #print(splitCmd) #use for debugging
     if splitCmd[0] == "change_password":
         changePass()
     elif splitCmd[0] == "check_user" and len(splitCmd) == 3:
@@ -205,22 +213,14 @@ def analyzeCommand(command):
         help_details(3)
     elif splitCmd[0] == "quit":
         login_quit()
-        msg = s.recv(numByteReceive)
-        s.send(bytes(user["username"], "utf-8"))
-        if msg.decode("utf-8") == "exit":
-            str = "exit"
-            print("Disconnected")
-            return str
+        #s.send(bytes(user["username"], "utf-8"))
+        return "exit"
     elif splitCmd[0] == "log_out":
         s.send(bytes("log_out", "utf-8"))
-        msg = s.recv(numByteReceive)
-        s.send(bytes(user["username"], "utf-8"))
-        if msg.decode("utf-8") == "log_out_success":
-            print("Logged out")
-            return "log_out"
+        return "log_out"
     else:
         s.send(bytes("cmd_invalid", "utf-8"))
-        print("Invalid Command. Try again !")
+        print(">> ERROR: Invalid Command. Try again !\n")
     return 0
 def print_user_info(info):
     for x in info:
@@ -244,7 +244,6 @@ def help_details(command):
         print('\t -date [birthday]  : Update date of birth of user')
         print('\t -note [note]  : Update note of user')
         print('\n')
-    s.send(bytes("help_detail", "utf-8"))
     return
 def help():
     print('change_password [username]      : Change your password')
@@ -252,27 +251,25 @@ def help():
     print('setup_info [-option]            : Setup your infomation')
     print('char [username]                 : Chat with another user')
     print('--> For more details: Type "/help command" - Ex: /help check_user')
-    s.send(bytes("help", "utf-8"))
+    
     return
 
-
-
 def press(btn):
-    global app
+    global app, leave
     if btn == "Send":
         note = app.getEntry("e1")
         s.send(bytes(note, "utf-8"))
         #lists.append(note)
         #app.updateListBox("list", lists, False, False)
     elif btn == "Leave":
-        global stop_msg
-        stop_msg = True
-        s.send(bytes("quit", "utf-8"))
+        s.send(bytes("chat_quit", "utf-8"))
+        
         #tmp = s.recv(numByteReceive)
         #print(tmp.decode('utf-8'))
         app.stop()
     elif btn == "cli_res":
         app.updateListBox("list", lists, False, False)
+        pass
 
 def chatbox():
     global app
@@ -292,55 +289,50 @@ def chatbox():
 def main():
     global stop_msg
     global app
-    loop = True
-    log_state = log()
-    while loop:
-        if log_state == True:
-            #handlethread = Thread(target=handle_thread)
-            #handlethread.start()
+    global login, out
+
+    recive_thread = Thread(target=recive)
+    recive_thread.start()
+
+    while True:
+        log()
+        time.sleep(1)
+        if login == True:
             print("You have successfully connected to the server!!!!")
-        elif log_state == "regis_success":
-            print("Registration successful you can login now")
-            main()
-        elif log_state == "exit":
-            return
+            break
+        if out == True:
+            break
+    if out:
+        return
+    
+    print('Type "/help" to know more about commands')
 
-        print('Type "/help" to know more about commands')
+    while True:      
+        command = input(">> ")
+        #print("DEBUG: command -> ", command)
+        a = analyzeCommand(command)
+        if a == "exit":
+            break
+        if a == "log_out":
+            login = False
+            break
+        time.sleep(1)
 
-
-        recive_thread = Thread(target=recive)
-        recive_thread.start()
-
-        while True:
-            data = s.recv(1024).decode("utf-8")
-            splitData = re.split("\s", data)
-            if (splitData[0] == "chat"):
-                s.send(bytes("cli_accept", "utf-8"))
-                name = splitData[1]
-                print(">> SERVER: User " + name + " want to chat with you.")
-
-                stop_msg = False
-                app = None
-                chatbox()
-                #recive_thread.join()
-                #trash = s.recv(numByteReceive)
-                #print(trash.decode('utf-8') + ": Quit")
-            #print(data)
-            command = input(">> ")
-            print("DEBUG: command -> ", command)
-            a = analyzeCommand(command)
-            if a == "exit":
-                loop = False
-                return
-            if a == "log_out":
-                recive_thread.join()
-                break
-        #break       
+    recive_thread.join()         
 
 stop_msg = True
 lists = []
 app = None
+newpass = None
+login = False
+out = False
+leave = False
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((host, 8080)) #must change port from string to int
+numByteReceive = 1024
+user = {"username": "", "password": "", "fullname": "", "birth": "", "notelist": "", "status": "off"}
 
 if __name__ == "__main__":
     main()
+
     s.close()

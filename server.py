@@ -19,9 +19,7 @@ class ClientThread(threading.Thread):
     def run(self):
         print("Connection from: ", self.caddress)
         while (True):
-            
-            self.csocket.send(bytes("Server", "utf-8"))
-            print("Sever sent message, waiting for response")
+            print("Server waiting for message")
             data = self.csocket.recv(numByteReceive)
             
             if (data.decode("utf-8") == "cli_accept"):
@@ -34,16 +32,18 @@ class ClientThread(threading.Thread):
                 self.csocket.close()
                 break
             elif (data.decode("utf-8") == "login_quit"):
-                self.csocket.send(bytes("exit","utf8"))
-                ur = self.csocket.recv(numByteReceive)
-                txt = ur.decode("utf-8")
+                self.csocket.send(bytes("in_exit","utf8"))
+                #ur = self.csocket.recv(numByteReceive)
+                txt = clients[self.csocket]
+                clients.pop(self.csocket)
+                address.pop(self.csocket)
                 user_data.loc[memory[txt], 'status'] = "off"
                 self.csocket.close()
                 break
             elif (data.decode("utf-8") == "log_out"):
                 self.csocket.send(bytes("log_out_success","utf8"))
-                ur = self.csocket.recv(numByteReceive)
-                txt = ur.decode("utf-8")
+                #ur = self.csocket.recv(numByteReceive)
+                txt = clients[self.csocket]
                 user_data.loc[memory[txt], 'status'] = "off"
                 print(user_data)
             else:
@@ -80,7 +80,7 @@ class ClientThread(threading.Thread):
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
                 handle_changepass(userdata)
-                self.csocket.send(bytes("Change password successfully", "utf-8"))
+                self.csocket.send(bytes("log_cp_200", "utf-8"))
             elif (data.decode("utf-8") == "unlogin_cpass"):
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
@@ -90,13 +90,14 @@ class ClientThread(threading.Thread):
                     obj = self.csocket.recv(4098)
                     newpass = pickle.loads(obj)
                     handle_unlogin_cpass(newpass)
-                    self.csocket.send(bytes("Change password successfully", "utf-8"))
+                    self.csocket.send(bytes(">> Change password successfully", "utf-8"))
                 else:
                     self.csocket.send(bytes("cpass_404", "utf-8"))
             #CHANGE PASSWORD
 
             #CHECK USER
             if (data.decode("utf-8") == "check_user"):
+                self.csocket.send(bytes("accept_ch_us", "utf-8"))
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
                 
@@ -115,7 +116,6 @@ class ClientThread(threading.Thread):
                         self.csocket.send(bytes(userdata["option"], "utf-8"))
                     else:
                         self.csocket.send(bytes(rep, "utf-8"))
-                time.sleep(0.2)
             #CHECK USER
 
             #SETUP INFO
@@ -126,6 +126,7 @@ class ClientThread(threading.Thread):
                 if result == True:
                     self.csocket.send(bytes("set_success", "utf-8"))
                 else:
+                    self.csocket.send(bytes("set_fail", "utf-8"))
                     self.csocket.send(bytes(result, "utf-8"))
 
             #SETUP INFO
@@ -136,7 +137,7 @@ class ClientThread(threading.Thread):
                 pack = {"username": user}
                 pos = find_user(pack)
                 if pos == "False":
-                    self.csocket.send(bytes("user_404", "utf-8"))
+                    self.csocket.send(bytes("chat_user_404", "utf-8"))
                 else:
                     if check_user_online(user, pos):
                         clisocket = find_clisocket_in_clients_byname(user)
@@ -145,28 +146,30 @@ class ClientThread(threading.Thread):
                             clisocket: user 
                         })
                         print("Chat List: ", chat_list)
-                        clisocket.send(bytes("chat " + clients[self.csocket], "utf-8"))
-                        self.csocket.send(bytes("onl","utf-8"))
+                        clisocket.send(bytes("chat_req", "utf-8"))
+                        self.csocket.send(bytes("chat_user_onl","utf-8"))
                         print("Client 1 is going into handle_chat")
                         self.handle_chat()
                         print("DEBUG: Client 1 out chatroom")
                         
                     else:
+                        self.csocket.send(bytes("chat_user_off","utf-8"))
                         mes = user + " is offline"
                         self.csocket.send(bytes(mes,"utf-8"))
-                time.sleep(0.2)
             #CHAT
         print("Client at ", self.caddress, " disconnected...")
     def handle_chat(self):
         while True:
             mes = self.csocket.recv(1024)
-            if mes.decode('utf-8') == "quit":
+            if mes.decode('utf-8') == "chat_quit":
                 if len(chat_list) < 2:
+                    self.csocket.send(bytes("leave_chat","utf-8"))
                     chat_list.clear()
                     break
                 else:
                     name = chat_list[self.csocket]
                     chat_list.pop(self.csocket)
+                    self.csocket.send(bytes("leave_chat","utf-8"))
                     broadcast(bytes("%s has left the chat." % name,"utf8"))
                     break
             else:
