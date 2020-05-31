@@ -2,12 +2,15 @@ import socket, threading
 import pandas as pd #convert csv to dictionary
 import pickle
 import time
+import os
+import tqdm
+
 #HOST = socket.gethostname()
 HOST = 'localhost'
 PORT = 8080
 numOfConnet = 5
 numByteReceive = 1024
-
+path = 'server/'
 
 #Class for multithread server socket
 class ClientThread(threading.Thread):
@@ -157,6 +160,16 @@ class ClientThread(threading.Thread):
                         mes = user + " is offline"
                         self.csocket.send(bytes(mes,"utf-8"))
             #CHAT
+            #HANDEL FILE
+            if (data.decode("utf-8") == "download"):
+                self.csocket.send(bytes("down_acpt", "utf-8"))
+                filename = self.csocket.recv(numByteReceive).decode("utf-8")
+                self.download(filename)
+            elif (data.decode("utf-8") == "upload"):
+                self.csocket.send(bytes("upload_acpt", "utf-8"))
+                filename = self.csocket.recv(numByteReceive).decode("utf-8")
+                self.upload(filename)
+            #HANDLE FILE
         print("Client at ", self.caddress, " disconnected...")
     def handle_chat(self):
         while True:
@@ -175,7 +188,49 @@ class ClientThread(threading.Thread):
             else:
                 print("Incoming mess: " + chat_list[self.csocket] + ": " + mes.decode('utf-8'))
                 broadcast(mes, chat_list[self.csocket]+ ": ")
-        
+    def download(self, filename):
+        global path
+        link = path + filename
+        print("Server download link: ", link)
+        if os.path.isfile(link):
+            filesize = os.path.getsize(link)
+            size = str(filesize)
+            print("Filesize: " + size)
+            self.csocket.send(bytes("Exists " + size,"utf-8"))
+            user_res = self.csocket.recv(1024).decode('utf-8')
+            if user_res == "ready":
+                progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor=1024)
+                with open(link, "rb") as f:
+                    for _ in progress:
+                        bytes_read = f.read(1024)
+                        if not bytes_read:   
+                            break
+                        self.csocket.sendall(bytes_read)
+                        progress.update(len(bytes_read))
+                    
+        else:
+            self.csocket.send(bytes("down_fail", "utf-8"))
+    def upload(self, filename):
+        global path
+        link = path + filename
+        print("Server download link: ", link)
+        if os.path.isfile(link):
+            self.csocket.send(bytes("up_file_exist", "utf-8"))
+        else:
+            self.csocket.send(bytes("ready", "utf-8"))
+            data = self.csocket.recv(numByteReceive).decode("utf-8")
+            if data[:4] == "Size":
+                filesize = int(data[4:])
+                with open(path + filename, "wb") as f:
+                    data = self.csocket.recv(1024)
+                    totalRecv = len(data)
+                    f.write(data)
+                    while totalRecv < filesize:
+                        data = self.csocket.recv(1024)
+                        totalRecv += len(data)
+                        f.write(data)
+                        print("{0:.2f}".format((totalRecv/float(filesize))*100)+ "% Done")
+
 #Class for multithread server socket
 def find_clisocket_in_clients_byname(username):
     for x in clients:
