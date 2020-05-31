@@ -199,8 +199,12 @@ def analyzeCommand(command):
         changePass()
     elif splitCmd[0] == "check_user" and len(splitCmd) == 3:
         checkUser(splitCmd[2], splitCmd[1])
-    elif splitCmd[0] == "setup_info" and len(splitCmd) == 3:
-        setupInfo(splitCmd[1], splitCmd[2])
+    elif splitCmd[0] == "setup_info" and len(splitCmd) >= 3:
+        content = ""
+        for i in range(2, len(splitCmd)):
+            content += splitCmd[i]
+            content += " "
+        setupInfo(splitCmd[1], content)
     elif splitCmd[0] == "chat" and len(splitCmd) == 2:
         chat_with_user(splitCmd[1])
     elif splitCmd[0] == "/help" and len(splitCmd) < 2:
