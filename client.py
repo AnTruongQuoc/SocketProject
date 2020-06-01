@@ -33,7 +33,6 @@ def log():
         print("User info", user)
         s.send(bytes("regis", "utf-8"))
         msg = pickle.dumps(user)
-        print("User info dump", msg)
         s.send(msg)
     elif (choice == "3"):
         user = sign.unlogin_changePassword(user)
@@ -451,7 +450,7 @@ def help():
     print('change_password [username]      : Change your password')
     print('check_user [-option] [username] : Check user infomation')
     print('setup_info [-option]            : Setup your infomation')
-    print('char [username]                 : Chat with another user')
+    print('chat [username]                 : Chat with another user')
     print('--> For more details: Type "/help command" - Ex: /help check_user')
     
     return
