@@ -30,7 +30,6 @@ def log():
         s.send(msg)
     elif (choice == "2"):
         user = sign.regis(user)
-        print("User info", user)
         s.send(bytes("regis", "utf-8"))
         msg = pickle.dumps(user)
         s.send(msg)
@@ -396,6 +395,10 @@ def analyzeCommand(command):
         help_details(2)
     elif splitCmd[0] == "/help" and splitCmd[1] == "setup_info":
         help_details(3)
+    elif splitCmd[0] == "/help" and splitCmd[1] == "upload":
+        help_details(4)
+    elif splitCmd[0] == "/help" and splitCmd[1] == "download":
+        help_details(5)
     elif splitCmd[0] == "quit":
         login_quit()
         #s.send(bytes(user["username"], "utf-8"))
@@ -443,14 +446,29 @@ def help_details(command):
         print('setup_info [-option] : Setup infomation of user')
         print('\t -fullname [name]  : Update name of user')
         print('\t -date [birthday]  : Update date of birth of user')
-        print('\t -note [note]  : Update note of user')
+        print('\t -note [note]      : Update note of user')
         print('\n')
+    elif command == 4:
+        print('upload [-option] [filename]     : Upload file to server, you can dont use option')
+        print('\t Without [-option]            : Upload file with [filename]')
+        print('\t -change_name [new] [current] : Change file name when upload to server')
+        print('\t -multi_files [list_file]     : Upload multiple files')
+        print('\t Ps: all file must be in "client" folder')
+    elif command == 5:
+        print('download [-option] [filename]     : Download file to client, you can dont use option')
+        print('\t Without [-option]            : Download file with [filename]')
+        print('\t -change_name [new] [current] : Change file name when download to client')
+        print('\t -multi_files [list_file]     : Download multiple files')
+        print('\t Ps: all file will be in "client" folder')
     return
+    
 def help():
     print('change_password [username]      : Change your password')
     print('check_user [-option] [username] : Check user infomation')
     print('setup_info [-option]            : Setup your infomation')
-    print('chat [username]                 : Chat with another user')
+    print('chat [username]                 : Chat with another user')  
+    print('upload [-option] [filename]     : Upload file to server, you can dont use option')
+    print('download [-option] [filename]     : Download file to client, you can dont use option')
     print('--> For more details: Type "/help command" - Ex: /help check_user')
     
     return
