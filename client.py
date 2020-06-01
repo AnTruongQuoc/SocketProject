@@ -10,7 +10,7 @@ from threading import Thread
 from getpass import getpass
 from appJar import gui
 import time
-
+import tqdm
 
 host = 'localhost'
 port = 8080
@@ -71,7 +71,7 @@ def setupInfo(option, content):
 
 
 def recive():
-    global app, login, out
+    global app, login, out, filename, wait
     print("Open Thread Recive")
     while True:
         #print("Thread is working")
@@ -159,7 +159,54 @@ def recive():
             handle_cli_chat()
             #chatbox_thread.join()      
         # HANDLE CHAT   
-        
+        # HANDLE DOWNLODD
+        if msg.decode("utf-8") == "down_acpt":
+            data = s.recv(numByteReceive).decode("utf-8")
+            print("Down client msg: ", data)
+            if data[:6] == "Exists":
+                filesize = int(data[6:])
+                print(data)
+                s.send(bytes("ready", "utf-8"))
+                #progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
+                with open(path + filename, "wb") as f:
+                    data = s.recv(1024)
+                    totalRecv = len(data)
+                    f.write(data)
+                    while totalRecv < filesize:
+                        data = s.recv(1024)
+                        totalRecv += len(data)
+                        f.write(data)
+                        print("{0:.2f}".format((totalRecv/float(filesize))*100)+ "% Done")
+                    print("Download Complete")
+                wait = True
+            else:
+                print("File does not exists!")
+                wait = True
+        # HANDLE DOWNLOAD
+        # HANDLE UPLOAD
+        if msg.decode("utf-8") == "upload_acpt":
+            data = s.recv(numByteReceive).decode("utf-8")
+            print("Up client msg: ", data)
+            link = path + filename
+            if data == "up_file_exist":
+                print(">> ERROR: Server already have this file")
+                wait = True
+            elif data == "ready":
+                filesize = os.path.getsize(link)
+                size = str(filesize)
+                print("Filesize: " + size)
+                s.send(bytes("Size " + size,"utf-8"))
+                progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor=1024)
+                with open(link, "rb") as f:
+                    for _ in progress:
+                        bytes_read = f.read(1024)
+                        if not bytes_read:   
+                            break
+                        s.sendall(bytes_read)
+                        progress.update(len(bytes_read))
+                wait = True
+
+        # HANDLE UPLOAD
 
 
 def handle_cli_chat():
@@ -190,8 +237,143 @@ def chat_with_user(username):
     #app = None
     s.send(bytes("chat", "utf-8"))
     s.send(bytes(username, "utf-8"))
+def upload_option_file(option, content):
+    global filename, wait
     
+    file_list = content
+
+    if option == "-change_name":
+        if len(file_list) > 2:
+            print(" >> ERROR: Only need 2 filenames")
+        elif len(file_list) < 2:
+            print(" >> ERROR: Need 2 filenames")
+        else:
+            if any("." in x for x in file_list):
+                if os.path.isfile(path + file_list[1]) == False:
+                    print(">> ERROR: File does not exist in Client!")
+                    return
+                else:
+                    filename = file_list[1]
+                    s.send(bytes("upload", "utf-8"))
+                    s.send(bytes(file_list[0], "utf-8"))
+                    #waiting upload process
+                    while True:
+                        if wait:
+                            break
+        
+                    wait = False
+            else:
+                print(">> ERROR: Missing type of file")
+    elif option == "-multi_files":
+        if len(file_list) < 2:
+            print(">> ERROR: You must type at least 2 filenames")
+        else:
+            if any("." in x for x in file_list):
+                for x in file_list:
+                    if os.path.isfile(path + x) == False:
+                        print(">> ERROR: File " + x + " does not exist in Client!!")
+                    else:   
+                        filename = x
+                        s.send(bytes("upload", "utf-8"))
+                        s.send(bytes(filename, "utf-8"))
+                        #waiting download process finished
+                        while True:
+                            if wait:
+                                break
+        
+                        wait = False
+            else:
+                 print(">> ERROR: Missing type of file!!!")
+    else:
+        print(">> ERROR: " + option + " is invalid")
+        return
+def upload_file(file_name):
+    global filename, wait
+    filename = file_name
+    if os.path.isfile(path + filename) == False:
+        print(">> ERROR: File does not exist!")
+        return
+    if '.' in filename:
+        s.send(bytes("upload", "utf-8"))
+        s.send(bytes(filename, "utf-8"))
+        #wait here
+        while True:
+            if wait:
+                break
+        
+        wait = False
+    else:
+        print(">> ERROR: Missing type of file!!!")
+    return   
+def download_option_file(option, content):
+    global filename, wait
     
+    file_list = content
+
+    if option == "-change_name":
+        if len(file_list) > 2:
+            print(" >> ERROR: Only need 2 filenames")
+        elif len(file_list) < 2:
+            print(" >> ERROR: Need 2 filenames")
+        else:
+            
+            if any("." in x for x in file_list):
+                if os.path.isfile(path + file_list[0]):
+                    print(">> ERROR: Already have this file in Client!")
+                    return
+                else:
+                    filename = file_list[0]
+                    s.send(bytes("download", "utf-8"))
+                    s.send(bytes(file_list[1], "utf-8"))
+                    #waiting download process
+                    while True:
+                        if wait:
+                            break
+        
+                    wait = False
+            else:
+                print(">> ERROR: Missing type of file")
+    elif option == "-multi_files":
+        if len(file_list) < 2:
+            print(">> ERROR: You must type at least 2 filenames")
+        else:
+            if any("." in x for x in file_list):
+                for x in file_list:
+                    if os.path.isfile(path + x):
+                        print(">> ERROR: File " + x + " alreay exist in Client!!")
+                    else:   
+                        filename = x
+                        s.send(bytes("download", "utf-8"))
+                        s.send(bytes(filename, "utf-8"))
+                        #waiting download process finished
+                        while True:
+                            if wait:
+                                break
+        
+                        wait = False
+            else:
+                 print(">> ERROR: Missing type of file!!!")
+    else:
+        print(">> ERROR: " + option + " is invalid")
+        return
+def download_file(file_name):
+    global filename, wait
+    filename = file_name
+    if os.path.isfile(path + filename):
+        print(">> ERROR: Already have this file!")
+        return
+    if '.' in filename:
+        s.send(bytes("download", "utf-8"))
+        s.send(bytes(filename, "utf-8"))
+        #wait here
+        while True:
+            if wait:
+                break
+        
+        wait = False
+    else:
+        print(">> ERROR: Missing type of file!!!")
+    return   
 def analyzeCommand(command):
     splitCmd = re.split("\s", command)
     #print(splitCmd) #use for debugging
@@ -222,6 +404,22 @@ def analyzeCommand(command):
     elif splitCmd[0] == "log_out":
         s.send(bytes("log_out", "utf-8"))
         return "log_out"
+    elif splitCmd[0] == "download":
+        if len(splitCmd) == 2:
+            download_file(splitCmd[1])
+        elif len(splitCmd) > 2:
+            content = []
+            for i in range(2, len(splitCmd)):
+                content.append(splitCmd[i])
+            download_option_file(splitCmd[1], content)
+    elif splitCmd[0] == "upload":
+        if len(splitCmd) == 2:
+            upload_file(splitCmd[1])
+        elif len(splitCmd) > 2:
+            content = []
+            for i in range(2, len(splitCmd)):
+                content.append(splitCmd[i])
+            upload_option_file(splitCmd[1], content)
     else:
         s.send(bytes("cmd_invalid", "utf-8"))
         print(">> ERROR: Invalid Command. Try again !\n")
@@ -331,6 +529,10 @@ newpass = None
 login = False
 out = False
 leave = False
+wait = False
+path = 'client/'
+filename = None
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((host, 8080)) #must change port from string to int
 numByteReceive = 1024
