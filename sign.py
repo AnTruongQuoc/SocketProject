@@ -10,7 +10,7 @@ def sign():
     result = input("Input (1/2/3/4):")
     print(result)
     if(result != "1" and result != "2" and result != "3" and result != "4"):
-        print("Wrong choice! Please chose again")
+        print("Wrong choice! Please choose again")
         return sign()
     
     return result
@@ -25,7 +25,7 @@ def regis(user):
     user["username"] = input("Please enter your username: ")
     user["password"] = getpass("Please enter your password: ")
     user["fullname"] = input("Enter your full name: ")
-    user["birth"] = input("Enter your birthday")
+    user["birth"] = input("Enter your birthday: ")
     user = encrypt(user)
     return user
 
