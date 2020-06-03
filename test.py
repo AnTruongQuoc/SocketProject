@@ -1,4 +1,5 @@
 from appJar import gui
+import crypt as cr
 
 app = gui("Chatter", "300x380")
 lists = []
@@ -63,4 +64,11 @@ def chatbox():
     app.stopFrame()
     app.go()
 
-chatbox()
+def cree():
+    affine = cr.Affine()
+    passw = "sdqwdas123"
+    enpass = affine.encrypt(passw)
+    print(affine.encrypt(passw))
+    print(affine.decrypt(enpass))
+
+cree()

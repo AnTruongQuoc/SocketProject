@@ -502,11 +502,11 @@ def press(btn):
         #app.updateListBox("list", lists, False, False)
     elif btn == "Leave":
         s.send(bytes("chat_quit", "utf-8"))
-        
+        s
         #tmp = s.recv(numByteReceive)
         #print(tmp.decode('utf-8'))
         app.stop()
-    elif btn == "+":
+    elif btn == "Add":
         name = app.stringBox("AddMem", "Username", parent=None)
         mes = "AddMem " + name
         s.send(bytes(mes, "utf-8"))
