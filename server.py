@@ -139,26 +139,29 @@ class ClientThread(threading.Thread):
                 user = self.csocket.recv(numByteReceive).decode("utf-8")
                 pack = {"username": user}
                 pos = find_user(pack)
-                if pos == "False":
-                    self.csocket.send(bytes("chat_user_404", "utf-8"))
+                if len(chat_list) >= 2:
+                    self.csocket.send(bytes("join_chat_fail", "utf-8"))
                 else:
-                    if check_user_online(user, pos):
-                        clisocket = find_clisocket_in_clients_byname(user)
-                        chat_list.update({
-                            self.csocket: clients[self.csocket],
-                            clisocket: user 
-                        })
-                        print("Chat List: ", chat_list)
-                        clisocket.send(bytes("chat_req", "utf-8"))
-                        self.csocket.send(bytes("chat_user_onl","utf-8"))
-                        print("Client 1 is going into handle_chat")
-                        self.handle_chat()
-                        print("DEBUG: Client 1 out chatroom")
-                        
+                    if pos == "False":
+                        self.csocket.send(bytes("chat_user_404", "utf-8"))
                     else:
-                        self.csocket.send(bytes("chat_user_off","utf-8"))
-                        mes = user + " is offline"
-                        self.csocket.send(bytes(mes,"utf-8"))
+                        if check_user_online(user, pos):
+                            clisocket = find_clisocket_in_clients_byname(user)
+                            chat_list.update({
+                                self.csocket: clients[self.csocket],
+                                clisocket: user 
+                            })
+                            print("Chat List: ", chat_list)
+                            clisocket.send(bytes("chat_req", "utf-8"))
+                            self.csocket.send(bytes("chat_user_onl","utf-8"))
+                            print("Client 1 is going into handle_chat")
+                            self.handle_chat()
+                            print("DEBUG: Client 1 out chatroom")
+
+                        else:
+                            self.csocket.send(bytes("chat_user_off","utf-8"))
+                            mes = user + " is offline"
+                            self.csocket.send(bytes(mes,"utf-8"))
             #CHAT
             #HANDEL FILE
             if (data.decode("utf-8") == "download"):
@@ -174,6 +177,7 @@ class ClientThread(threading.Thread):
     def handle_chat(self):
         while True:
             mes = self.csocket.recv(1024)
+
             if mes.decode('utf-8') == "chat_quit":
                 if len(chat_list) < 2:
                     self.csocket.send(bytes("leave_chat","utf-8"))
@@ -185,9 +189,40 @@ class ClientThread(threading.Thread):
                     self.csocket.send(bytes("leave_chat","utf-8"))
                     broadcast(bytes("%s has left the chat." % name,"utf8"))
                     break
+            elif mes.decode('utf-8')[:6] == "AddMem":
+                user = mes.decode('utf-8')[7:]
+                print("ADD:" + user)
+                self.add_mem(user)
             else:
                 print("Incoming mess: " + chat_list[self.csocket] + ": " + mes.decode('utf-8'))
                 broadcast(mes, chat_list[self.csocket]+ ": ")
+    def add_mem(self, user):
+        pack = {"username": user}
+        pos = find_user(pack)
+        global userExist
+        userExist = False #check if user already in chat list
+        for x in chat_list:
+            if chat_list[x] == user:
+                userExist = True
+                self.csocket.send(bytes("add_user_000", "utf-8"))
+                break
+        if not userExist:
+            if pos == "False":
+                self.csocket.send(bytes("add_user_404", "utf-8"))
+            else:
+                if check_user_online(user, pos):
+                    clisocket = find_clisocket_in_clients_byname(user)
+                    chat_list.update({
+                        clisocket: user
+                    })
+                    print("Chat List: ", chat_list)
+                    clisocket.send(bytes("chat_req", "utf-8"))
+                else:
+                    notc = "add_200_off " + user
+                    msg = notc + " is offline"
+                    self.csocket.send(bytes(msg, "utf-8"))
+                    pass
+            
     def download(self, filename):
         global path
         link = path + filename

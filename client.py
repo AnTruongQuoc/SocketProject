@@ -19,7 +19,7 @@ port = 8080
 def login_quit():
     s.send(bytes("login_quit", "utf-8"))
     return
-
+#login function
 def log():
     global user, newpass
     choice = sign.sign()
@@ -69,7 +69,7 @@ def setupInfo(option, content):
 
 
 def recive():
-    global app, login, out, filename, wait
+    global app, login, out, filename, wait, cli_chat_wait
     print("Open Thread Recive")
     while True:
         #print("Thread is working")
@@ -139,6 +139,7 @@ def recive():
         if msg.decode("utf-8") == "chat_user_404":
             print(">> ERROR: User not found")
         elif msg.decode("utf-8") == "chat_user_onl":
+            
             chatbox_thread = Thread(target=chatbox)
             chatbox_thread.setDaemon(True)
             chatbox_thread.start()
@@ -147,14 +148,18 @@ def recive():
         elif msg.decode("utf-8") == "chat_user_off":
             re = s.recv(numByteReceive).decode("utf-8")
             print(re)
-            
+        elif msg.decode("utf-8") == "join_chat_fail":
+            print("User has already in chatroom with someone else")
         if msg.decode("utf-8") == "chat_req":
             s.send(bytes("cli_accept", "utf-8"))
             #app = None
+            cli_chat_wait = True
             chatbox_thread = Thread(target=chatbox)
             chatbox_thread.setDaemon(True)
             chatbox_thread.start()
             handle_cli_chat()
+            cli_chat_wait = False
+            print("Out chatroom")
             #chatbox_thread.join()      
         # HANDLE CHAT   
         # HANDLE DOWNLODD
@@ -208,7 +213,7 @@ def recive():
 
 
 def handle_cli_chat():
-    global leave
+    global leave, app, wait
     #print("Go to Handle Chat")
     while True:
         try:
@@ -217,7 +222,13 @@ def handle_cli_chat():
             mes = s.recv(numByteReceive)
             m = mes.decode('utf-8')
             if m == "leave_chat":
+                wait = True
                 break
+            elif m[:11] == "add_200_off":
+                app.infoBox("Notice", m[12:], parent=None)
+            elif m == "add_user_404":
+                n = "User not found"
+                app.infoBox("Notice", n, parent=None)
             else:
                 lists.append(m)
                 recall = "cli_res"
@@ -230,11 +241,16 @@ def handle_cli_chat():
     return
 
 def chat_with_user(username):
-    global stop_msg
+    global wait
     global app
     #app = None
     s.send(bytes("chat", "utf-8"))
     s.send(bytes(username, "utf-8"))
+    while True:
+        time.sleep(0.5)
+        if wait:
+            break
+    wait = False
 def upload_option_file(option, content):
     global filename, wait
     
@@ -473,11 +489,15 @@ def help():
     
     return
 
+#press function of Button in Chatbox
 def press(btn):
     global app, leave
-    if btn == "Send":
+    if btn == "Send" or btn == "Return":
         note = app.getEntry("e1")
-        s.send(bytes(note, "utf-8"))
+        if note == "":
+            pass
+        else:
+            s.send(bytes(note, "utf-8"))
         #lists.append(note)
         #app.updateListBox("list", lists, False, False)
     elif btn == "Leave":
@@ -486,29 +506,69 @@ def press(btn):
         #tmp = s.recv(numByteReceive)
         #print(tmp.decode('utf-8'))
         app.stop()
+    elif btn == "+":
+        name = app.stringBox("AddMem", "Username", parent=None)
+        mes = "AddMem " + name
+        s.send(bytes(mes, "utf-8"))
     elif btn == "cli_res":
         app.updateListBox("list", lists, False, False)
+        app.clearEntry("e1", callFunction=False)
         pass
 
+#Chatbox GUI
 def chatbox():
     global app
-    app = gui(user["username"], "300x300")
+    app = gui(user["username"], "300x380")
+
+    app.startFrame("TOP", row=0, column=0) 
     app.setFont(20)
-    app.addLabel("title", " Welcome to Chatroom ") 
+    app.setPadding([10,0])
+    app.setSticky('news')
+    app.addLabel("title", " Welcome to Chatroom ")
+    app.setLabelHeight("title", 2)
+    app.stopFrame()
+
+    app.startFrame("MID", row=1, column=0)
     app.startScrollPane("PANE")
+    app.setPadding([10,10])
     app.addListBox("list", lists)
+    app.setListBoxWidth("list", 30)
+    app.setListBoxHeight("list", 10)
     app.stopScrollPane()
+    app.stopFrame()
+
+    app.startFrame("MID_mess", row=2, column=0) 
     app.setFont(13)
-    app.addEntry("e1")
+    app.setPadding([5,5])
+    app.addEntry("e1", 2, 0)
     app.setEntryDefault("e1", "Type message here")
-    app.addButtons(["Send", "Leave"], press) 
+    
+    app.addButton("Send", press, 2 , 1)
+    app.setButtonHeight("Send", 1)
+    app.setButtonBg("Send", "#035AA6")
+    app.setButtonFg("Send", "White")
+
+    app.enableEnter(press)
+    app.stopFrame()
+
+    app.startFrame("BOTTOM", row=3, column=0)
+    app.setFrameHeight("BOTTOM", 10)
+    app.setPadding([5, 5])
+    app.addButtons(["Add" ,"Leave"], press, 2, 0, 2)
+    app.setButtonWidth("Add", 6)
+    app.setButtonWidth("Leave", 6)
+    app.setButtonBg("Add", "#4b8e8d")
+    app.setButtonFg("Add", "White")
+    app.setButtonBg("Leave", "#D32626")
+    app.setButtonFg("Leave", "White")
+    app.stopFrame()
     app.go()
 
 
 def main():
     global stop_msg
     global app
-    global login, out
+    global login, out, cli_chat_wait
 
     recive_thread = Thread(target=recive)
     recive_thread.start()
@@ -529,13 +589,20 @@ def main():
     while True:      
         command = input(">> ")
         #print("DEBUG: command -> ", command)
-        a = analyzeCommand(command)
-        if a == "exit":
-            break
-        if a == "log_out":
-            login = False
-            break
-        time.sleep(1)
+        if cli_chat_wait:
+            print("Waiting... You are in chatroom")
+            while True:
+                time.sleep(0.5)
+                if wait:
+                    break
+        else:
+            a = analyzeCommand(command)
+            if a == "exit":
+                break
+            if a == "log_out":
+                login = False
+                break
+        
 
     recive_thread.join()         
 
@@ -549,6 +616,7 @@ leave = False
 wait = False
 path = 'client/'
 filename = None
+cli_chat_wait = False
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((host, 8080)) #must change port from string to int
