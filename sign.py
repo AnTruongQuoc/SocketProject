@@ -18,7 +18,6 @@ def sign():
 def login(user):
     user["username"] = input("Please enter your username: ")
     user["password"] = getpass("Please enter your password: ")
-    user = encrypt(user)
     return user
 
 def regis(user):
@@ -26,9 +25,16 @@ def regis(user):
     user["password"] = getpass("Please enter your password: ")
     user["fullname"] = input("Enter your full name: ")
     user["birth"] = input("Enter your birthday: ")
-    user = encrypt(user)
     return user
 
+def regisAndEncrypt(user):
+    user["username"] = input("Please enter your username: ")
+    user["password"] = getpass("Please enter your password: ")
+    user["fullname"] = input("Enter your full name: ")
+    user["birth"] = input("Enter your birthday: ")
+    affine = cr.Affine()
+    user["password"] = affine.encrypt(user["password"])
+    return user
 
 def encrypt(user):
     encrypt = input("Do you want to encrypt your password? (Y/N)")
@@ -37,7 +43,8 @@ def encrypt(user):
         #add code below this line
             #encrypt password
         affine = cr.Affine()
-        affine.encrypt(user["password"])
+        user["password"] = affine.encrypt(user["password"])
+        #print(user["password"])
         #add code above this line
         return user
     else:
@@ -47,12 +54,12 @@ def unlogin_changePassword(user):
     user["username"] = input("Username >> ")
     user["password"] = getpass("Current password >> ")
     return user
+
 def changePassword(user):
     oldPass = getpass("Current password >> ")
     if oldPass == user["password"]:
         newPass = getpass("New password    >> ")
         user["password"] = newPass
-        user = encrypt(user)
         return user["password"]
     else:
         print("Wrong old password")

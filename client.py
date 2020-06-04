@@ -11,6 +11,7 @@ from getpass import getpass
 from appJar import gui
 import time
 import tqdm
+import crypt
 
 host = 'localhost'
 port = 8080
@@ -25,18 +26,42 @@ def log():
     choice = sign.sign()
     if (choice == "1"):
         user = sign.login(user)
-        s.send(bytes("login", "utf-8"))
-        msg = pickle.dumps(user)
-        s.send(msg)
+        encrypt = input("Do you want to encrypt your password? (Y/N)")
+        if encrypt == "Y":
+            print("Your information has been encrypted")
+            affine = crypt.Affine()
+            user["password"] = affine.encrypt(user["password"])
+            s.send(bytes("login", "utf-8"))
+            msg = pickle.dumps(user)
+            s.send(msg)
+            user["password"] = affine.decrypt(user["password"])
+        else:
+            print("You choose not to encrypt your password.")
+            s.send(bytes("login", "utf-8"))
+            msg = pickle.dumps(user)
+            s.send(msg)
+
     elif (choice == "2"):
-        user = sign.regis(user)
-        s.send(bytes("regis", "utf-8"))
+        encrypt = input("Do you want to encrypt your password? (Y/N)")
+        if (encrypt == "N"):
+            user = sign.regis(user)
+            s.send(bytes("regis", "utf-8"))
+        elif (encrypt == "Y"):
+            user = sign.regisAndEncrypt(user)
+            s.send(bytes("regis_encrypt", "utf-8"))
+
         msg = pickle.dumps(user)
         s.send(msg)
     elif (choice == "3"):
         user = sign.unlogin_changePassword(user)
         newpass = getpass("New password >> ")
-        s.send(bytes("unlogin_cpass", "utf-8"))
+        encrypt = input("Do you want to encrypt your password? (Y/N)")
+        if encrypt == "Y":
+            affine = crypt.Affine()
+            newpass = affine.encrypt(newpass)
+            s.send(bytes("unlogin_cpass_encrypt", "utf-8"))
+        else:
+            s.send(bytes("unlogin_cpass", "utf-8"))
         msg = pickle.dumps(user)
         s.send(msg)
     else:
@@ -47,7 +72,14 @@ def changePass():
     newPass = sign.changePassword(user)
     if newPass == False:
         return False
-    s.send(bytes("newpass", "utf-8"))
+    encrypt = input("Do you want to encrypt your password? (Y/N)")
+    if encrypt == "Y":
+        affine = crypt.Affine()
+        user["password"] = affine.encrypt(user["password"])
+        s.send(bytes("newpass_encrypt", "utf-8"))
+    else:
+        s.send(bytes("newpass", "utf-8"))
+
     msg = pickle.dumps(user)
     s.send(msg)
     

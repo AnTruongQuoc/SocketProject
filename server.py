@@ -4,6 +4,7 @@ import pickle
 import time
 import os
 import tqdm
+import crypt 
 
 #HOST = socket.gethostname()
 HOST = 'localhost'
@@ -58,7 +59,15 @@ class ClientThread(threading.Thread):
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
                 #print("Message: ", userdata)
-
+                if check_user_regis(userdata):
+                    self.csocket.send(bytes("regis_success", "utf-8"))
+                else: 
+                    self.csocket.send(bytes("regis_fail", "utf-8"))
+            elif (data.decode("utf-8") == "regis_encrypt"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                affine = crypt.Affine()
+                userdata["password"] = affine.decrypt(userdata["password"])
                 if check_user_regis(userdata):
                     self.csocket.send(bytes("regis_success", "utf-8"))
                 else: 
@@ -84,6 +93,13 @@ class ClientThread(threading.Thread):
                 userdata = pickle.loads(msg)
                 handle_changepass(userdata)
                 self.csocket.send(bytes("log_cp_200", "utf-8"))
+            elif (data.decode("utf-8") == "newpass_encrypt"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                affine = crypt.Affine()
+                userdata["password"] = affine.decrypt(userdata["password"])
+                handle_changepass(userdata)
+                self.csocket.send(bytes("log_cp_200", "utf-8"))
             elif (data.decode("utf-8") == "unlogin_cpass"):
                 msg = self.csocket.recv(4098)
                 userdata = pickle.loads(msg)
@@ -92,6 +108,20 @@ class ClientThread(threading.Thread):
                     self.csocket.send(bytes("cpass_200", "utf-8"))
                     obj = self.csocket.recv(4098)
                     newpass = pickle.loads(obj)
+                    handle_unlogin_cpass(newpass)
+                    self.csocket.send(bytes(">> Change password successfully", "utf-8"))
+                else:
+                    self.csocket.send(bytes("cpass_404", "utf-8"))
+            elif (data.decode("utf-8") == "unlogin_cpass_encrypt"):
+                msg = self.csocket.recv(4098)
+                userdata = pickle.loads(msg)
+                
+                if check_user_cpass(userdata):
+                    self.csocket.send(bytes("cpass_200", "utf-8"))
+                    obj = self.csocket.recv(4098)
+                    newpass = pickle.loads(obj)
+                    affine = crypt.Affine()
+                    newpass["password"] = affine.decrypt(newpass["password"])
                     handle_unlogin_cpass(newpass)
                     self.csocket.send(bytes(">> Change password successfully", "utf-8"))
                 else:
@@ -379,8 +409,8 @@ def handle_changepass(user): #handle changpassword when user already log in
     count = 0
     for x in user_data["username"]:
         if user["username"] == x:
-            print(x)
-            print(user_data.at[count, 'password'])
+            #print(x)
+            #print(user_data.at[count, 'password'])
             user_data.loc[count, 'password'] = user["password"]
             user_data.loc[count, 'status'] = "off"
             print("newpassword: ",user_data.at[count, 'password'])
@@ -391,13 +421,13 @@ def handle_changepass(user): #handle changpassword when user already log in
         count += 1
     return
 def check_user_login(user):
-    
     count = 0
     for x in user_data["username"]:
         if user["username"] == x:
-            print(x)
-            print(user_data.at[count, 'password'])
-            if user["password"] == user_data.at[count, 'password']:
+            #print(x)
+            #print(user_data.at[count, 'password'])
+            affine = crypt.Affine()
+            if (user["password"] == user_data.at[count, 'password']) or (affine.decrypt(user["password"]) == user_data.at[count, 'password']):
                 print(user_data.at[count, 'status'] == "online")
                 if user_data.at[count, 'status'] == "online":
                     return "000"
@@ -406,6 +436,7 @@ def check_user_login(user):
                 print(user_data)
                 print(memory)
                 return True
+
         count += 1
     
     return False       
