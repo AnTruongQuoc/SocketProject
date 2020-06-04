@@ -20,7 +20,7 @@ def login_quit():
     s.send(bytes("login_quit", "utf-8"))
     return
 
-s#login function
+#login function
 def log():
     global user, newpass
     choice = sign.sign()
@@ -179,8 +179,10 @@ def recive():
         elif msg.decode("utf-8") == "chat_user_off":
             re = s.recv(numByteReceive).decode("utf-8")
             print(re)
+            wait = True
         elif msg.decode("utf-8") == "join_chat_fail":
             print("User has already in chatroom with someone else")
+            wait = True
         if msg.decode("utf-8") == "chat_req":
             s.send(bytes("cli_accept", "utf-8"))
             #app = None
