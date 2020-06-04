@@ -16,11 +16,11 @@ import crypt
 host = 'localhost'
 port = 8080
 
-
 def login_quit():
     s.send(bytes("login_quit", "utf-8"))
     return
-#login function
+
+s#login function
 def log():
     global user, newpass
     choice = sign.sign()
@@ -98,7 +98,6 @@ def setupInfo(option, content):
     s.send(bytes("set_info", "utf-8"))
     msg = pickle.dumps(pack)
     s.send(msg)
-
 
 def recive():
     global app, login, out, filename, wait, cli_chat_wait
@@ -242,7 +241,6 @@ def recive():
                 wait = True
 
         # HANDLE UPLOAD
-
 
 def handle_cli_chat():
     global leave, app, wait
